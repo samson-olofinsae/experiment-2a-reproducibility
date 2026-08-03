@@ -1,0 +1,25 @@
+# Large sequencing files
+*.bam
+*.bai
+*.cram
+*.crai
+
+# Generated working directories
+data/
+results/
+logs/
+quarantine/
+download_logs/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Operating system
+.DS_Store
+Thumbs.db

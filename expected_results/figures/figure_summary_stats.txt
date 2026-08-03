@@ -1,0 +1,4 @@
+Pearson correlation: 1.000000
+Mean absolute mapped-read difference: 0.000000
+Maximum absolute mapped-read difference: 0
+Number of comparisons: 27

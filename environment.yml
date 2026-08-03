@@ -1,0 +1,13 @@
+name: experiment-2a-reproducibility
+
+channels:
+  - conda-forge
+  - bioconda
+
+dependencies:
+  - python=3.10
+  - samtools=1.22
+  - aria2
+  - pandas
+  - matplotlib-base
+  - openpyxl
