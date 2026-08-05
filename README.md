@@ -202,7 +202,7 @@ If you use this computational workflow in your research, please cite the accompa
 
 > Olofinsae SA, Fatumo S, *et al.*
 >
-> **A Reproducible Computational Benchmarking Framework for Evaluating Agreement Between BAM-Derived Mapped-Read Metrics.**
+> **A Reproducible Computational Benchmarking Framework for Evaluating Agreement Between BAM-Derived Mapped-Read Metrics Across Sequencing Depths**
 >
 > *(Publication details to be updated upon acceptance.)*
 
