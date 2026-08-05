@@ -4,7 +4,7 @@
 
 This repository contains the complete computational workflow used to reproduce **Experiment 2a** described in the manuscript:
 
-> **A Reproducible Computational Benchmarking Framework for Evaluating Agreement Between BAM-Derived Mapped-Read Metrics**
+> **A Reproducible Computational Benchmarking Framework for Evaluating Agreement Between BAM-Derived Mapped-Read Metrics Across Sequencing Depths**
 
 Experiment 2a establishes a reproducible computational benchmarking workflow for evaluating agreement between mapped-read counts reported by **samtools flagstat** and **samtools idxstats** using three publicly available prostate tumour BAM datasets analysed across nine sequencing-depth fractions (10–90%).
 
