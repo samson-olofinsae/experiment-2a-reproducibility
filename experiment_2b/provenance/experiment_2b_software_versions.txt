@@ -1,0 +1,6 @@
+Experiment 2b software environment
+
+samtools 1.22.1
+Using htslib 1.23.1
+Python 3.10.20
+GNU Awk 5.2.1, API 3.2, PMA Avon 8-g1, (GNU MPFR 4.2.1, GNU MP 6.3.0)

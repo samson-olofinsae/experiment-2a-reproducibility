@@ -1,0 +1,4 @@
+condition	source_bam	baseline_mapped_count	removed_mapped_records	expected_flagstat_mapped	expected_idxstats_mapped	expected_delta
+baseline	SRR10353673_10pct.bam	9061436	0	9061436	9061436	0
+PC1_k1000	SRR10353673_10pct.bam	9061436	1000	9060436	9061436	-1000
+PC2_k10000	SRR10353673_10pct.bam	9061436	10000	9051436	9061436	-10000

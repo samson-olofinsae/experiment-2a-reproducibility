@@ -1,0 +1,4 @@
+condition	baseline_mapped_count	removed_mapped_records	flagstat_mapped	idxstats_mapped	delta_expected	delta_observed	residual
+baseline	9061436	0	9061436	9061436	0	0	0
+PC1_k1000	9061436	1000	9060436	9061436	-1000	-1000	0
+PC2_k10000	9061436	10000	9051436	9061436	-10000	-10000	0
