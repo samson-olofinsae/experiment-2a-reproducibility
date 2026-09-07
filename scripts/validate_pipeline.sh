@@ -2,16 +2,23 @@
 
 set -euo pipefail
 
-# Structural validation of the BAM files used in Experiment 2a.
+# Structural validation of the source BAM files used in the
+# baseline concordance experiment.
 #
 # This script:
-#   1. Reads the fixed Experiment 2a BAM manifest.
+#   1. Reads the fixed source-BAM manifest.
 #   2. Confirms that each expected BAM file is present.
 #   3. Runs samtools quickcheck to assess BAM structure.
 #   4. Confirms that a compatible BAM index is present or creates one.
 #   5. Moves structurally invalid BAM files and associated indexes
 #      into the quarantine directory.
-#   6. Writes a tab-separated structural-validation report.
+#   6. Writes tab-separated structural-validation reports.
+#
+# Important:
+#   This script verifies BAM structure and index availability.
+#   It does not determine whether an existing BAM index represents
+#   the current contents of the BAM. Stale-index behaviour is evaluated
+#   separately in the prespecified positive-control experiment.
 #
 # Expected inputs:
 #   config/experiment_2a_bam_manifest.tsv
@@ -66,13 +73,13 @@ printf \
     > "${FAILURE_REPORT}"
 
 echo "Reading manifest: ${MANIFEST}"
-echo "Validating BAM files in: ${RAW_DIR}"
+echo "Validating source BAM files in: ${RAW_DIR}"
 
 validated_count=0
 failed_count=0
 
 # ------------------------------------------------------------------
-# Validate each Experiment 2a BAM
+# Validate each source BAM
 # ------------------------------------------------------------------
 
 while IFS=$'\t' read -r \
@@ -281,15 +288,15 @@ done < "${MANIFEST}"
 
 echo "----------------------------------------"
 echo "Structural validation complete."
-echo "BAM files passed: ${validated_count}"
-echo "BAM files failed: ${failed_count}"
+echo "Source BAM files passed: ${validated_count}"
+echo "Source BAM files failed: ${failed_count}"
 echo "Validation report: ${VALIDATION_REPORT}"
 echo "Failure report: ${FAILURE_REPORT}"
 echo "Quarantine directory: ${QUARANTINE_DIR}"
 
 if [[ "${failed_count}" -gt 0 ]]; then
-    echo "ERROR: One or more Experiment 2a BAM files failed structural validation." >&2
+    echo "ERROR: One or more baseline source BAM files failed structural validation." >&2
     exit 1
 fi
 
-echo "All Experiment 2a BAM files passed structural validation."
+echo "All baseline source BAM files passed structural validation."

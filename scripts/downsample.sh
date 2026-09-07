@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# Generate one deterministic downsampled BAM for the baseline
+# concordance experiment.
+#
 # Usage:
 #   bash scripts/downsample.sh input.bam fraction output.bam
 #
@@ -9,17 +12,20 @@ set -euo pipefail
 #   bash scripts/downsample.sh sample.bam 0.1 sample_10pct.bam
 #
 # Reproducibility note:
+#
 # samtools interprets the -s argument using the form INT.FRAC,
 # where INT specifies the random seed and FRAC specifies the
 # subsampling fraction.
 #
-# Experiment 2a used fractions 0.1 through 0.9. The integer
-# component was therefore 0 for every downsampling operation,
-# giving a fixed seed of 0 and preserving reproducibility of the
-# canonical Experiment 2a outputs.
+# The baseline concordance experiment uses fractions 0.1 through
+# 0.9. The integer component is therefore 0 for every downsampling
+# operation, giving a fixed seed of 0 and preserving reproducibility
+# of the canonical baseline outputs.
 #
 # Each fraction is generated directly from the original source BAM,
-# rather than sequentially from another downsampled BAM.
+# rather than sequentially from another downsampled BAM. With the
+# fixed seed, the resulting fractions form reproducible nested
+# alignment sets across increasing depth conditions.
 
 if [[ $# -ne 3 ]]; then
     echo "Usage: $0 input.bam fraction output.bam" >&2
@@ -37,6 +43,7 @@ fi
 
 # Confirm that the requested fraction is a numeric value greater
 # than 0 and less than 1.
+
 python3 - "${FRACTION}" <<'PY'
 import sys
 
@@ -59,16 +66,19 @@ if not 0.0 < fraction < 1.0:
 PY
 
 # Confirm that samtools is available.
+
 if ! command -v samtools >/dev/null 2>&1; then
     echo "ERROR: samtools was not found in PATH." >&2
     exit 1
 fi
 
 # Ensure that the output directory exists.
+
 mkdir -p "$(dirname "${OUTPUT_BAM}")"
 
-# Downsample using the same samtools command and implicit seed
-# configuration used in the original Experiment 2a analysis.
+# Downsample using the fixed-seed configuration used to generate
+# the canonical baseline concordance outputs.
+
 samtools view \
     -@ 2 \
     -s "${FRACTION}" \
@@ -76,15 +86,18 @@ samtools view \
     -o "${OUTPUT_BAM}"
 
 # Confirm that the output BAM was created and is not empty.
+
 if [[ ! -s "${OUTPUT_BAM}" ]]; then
     echo "ERROR: Downsampled BAM was not created or is empty: ${OUTPUT_BAM}" >&2
     exit 1
 fi
 
 # Index the downsampled BAM.
+
 samtools index "${OUTPUT_BAM}"
 
 # Confirm that the BAM index was created.
+
 if [[ ! -s "${OUTPUT_BAM}.bai" ]]; then
     echo "ERROR: BAM index was not created: ${OUTPUT_BAM}.bai" >&2
     exit 1

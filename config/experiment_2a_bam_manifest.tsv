@@ -1,4 +1,4 @@
 sample_id	study_accession	cancer_type	assay_type	source	file_url	expected_md5	notes
-SRR10353673	PRJNA577801	prostate	WXS	ENA	ftp://ftp.sra.ebi.ac.uk/vol1/run/SRR103/SRR10353673/G09.094_TA1.bam	f9f7ab6a7731eeefb6499a9a4163596e	ENA submitted BAM used in Experiment 2a
-SRR10353687	PRJNA577801	prostate	WXS	ENA	ftp://ftp.sra.ebi.ac.uk/vol1/run/SRR103/SRR10353687/G11.059_TA1.bam	62da66536dc45ec485378055a7629f45	ENA submitted BAM used in Experiment 2a
-SRR10353710	PRJNA577801	prostate	WXS	ENA	ftp://ftp.sra.ebi.ac.uk/vol1/run/SRR103/SRR10353710/G10.054_TA1.bam	cac70f53469c87b9cf4f1affbb5d4b83	ENA submitted BAM used in Experiment 2a
+SRR10353673	PRJNA577801	prostate	WXS	ENA	ftp://ftp.sra.ebi.ac.uk/vol1/run/SRR103/SRR10353673/G09.094_TA1.bam	f9f7ab6a7731eeefb6499a9a4163596e	ENA submitted BAM used in the baseline concordance experiment
+SRR10353687	PRJNA577801	prostate	WXS	ENA	ftp://ftp.sra.ebi.ac.uk/vol1/run/SRR103/SRR10353687/G11.059_TA1.bam	62da66536dc45ec485378055a7629f45	ENA submitted BAM used in the baseline concordance experiment
+SRR10353710	PRJNA577801	prostate	WXS	ENA	ftp://ftp.sra.ebi.ac.uk/vol1/run/SRR103/SRR10353710/G10.054_TA1.bam	cac70f53469c87b9cf4f1affbb5d4b83	ENA submitted BAM used in the baseline concordance experiment

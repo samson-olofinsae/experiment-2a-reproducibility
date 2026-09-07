@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Generate the Experiment 2a benchmarking tables.
+Generate benchmarking tables for the baseline concordance experiment.
 
 This script parses the raw outputs produced by:
 
@@ -13,8 +13,9 @@ It generates:
     results/metrics_table.tsv
     results/discrepancy_summary.tsv
 
-The analytical calculations and output-column structure preserve the
-logic used in the original Experiment 2a workflow.
+The analysis compares corresponding mapped-read quantities reported by
+samtools flagstat and samtools idxstats across the deterministic nested
+downsampling conditions used in the baseline concordance experiment.
 """
 
 from __future__ import annotations
@@ -70,8 +71,8 @@ def parse_flagstat(path: Path) -> tuple[int, int]:
     """
     Parse total-read and mapped-read counts from raw samtools flagstat output.
 
-    Both QC-passed and QC-failed counts are summed, preserving the logic used
-    in the original Experiment 2a workflow.
+    Both QC-passed and QC-failed counts are summed so that F represents the
+    complete mapped category used in the baseline concordance analysis.
     """
     total: int | None = None
     mapped: int | None = None
@@ -114,8 +115,9 @@ def parse_idxstats(path: Path) -> tuple[int, int]:
     """
     Parse total-read and mapped-read counts from raw samtools idxstats output.
 
-    Total reads are calculated as the sum of mapped and unmapped reads across
-    all reference-sequence rows, preserving the original Experiment 2a logic.
+    I is defined as the sum of mapped alignment counts reported across all
+    reference-sequence rows. Total reads are calculated as the sum of mapped
+    and unmapped counts across the parsed idxstats rows.
     """
     total_mapped = 0
     total_unmapped = 0
@@ -169,6 +171,7 @@ def validate_input_directories() -> None:
         missing_text = "\n".join(
             f"  - {path}" for path in missing_directories
         )
+
         raise SystemExit(
             "ERROR: Required input directories were not found:\n"
             f"{missing_text}\n"
@@ -230,11 +233,17 @@ def collect_rows() -> list[dict[str, object]]:
         flagstat_total, flagstat_mapped = parse_flagstat(flagstat_path)
         idxstats_total, idxstats_mapped = parse_idxstats(idxstats_path)
 
-        mapped_diff = flagstat_mapped - idxstats_mapped
-        mapped_diff_pct = (
-            mapped_diff / flagstat_mapped * 100
-            if flagstat_mapped
-            else 0
+        signed_discrepancy = flagstat_mapped - idxstats_mapped
+        absolute_discrepancy = abs(signed_discrepancy)
+
+        percentage_discrepancy = (
+            absolute_discrepancy / flagstat_mapped * 100
+            if flagstat_mapped > 0
+            else None
+        )
+
+        exact_concordance = (
+            flagstat_mapped == idxstats_mapped
         )
 
         rows.append(
@@ -247,17 +256,25 @@ def collect_rows() -> list[dict[str, object]]:
                 "flagstat_mapped": flagstat_mapped,
                 "idxstats_total": idxstats_total,
                 "idxstats_mapped": idxstats_mapped,
-                "mapped_diff": mapped_diff,
-                "mapped_diff_pct": round(mapped_diff_pct, 6),
+                "signed_discrepancy": signed_discrepancy,
+                "absolute_discrepancy": absolute_discrepancy,
+                "percentage_discrepancy": (
+                    round(percentage_discrepancy, 6)
+                    if percentage_discrepancy is not None
+                    else None
+                ),
+                "exact_concordance": exact_concordance,
             }
         )
 
     return rows
 
 
-def validate_experiment_design(metrics: pd.DataFrame) -> None:
+def validate_experiment_design(
+    metrics: pd.DataFrame,
+) -> None:
     """
-    Confirm that the parsed outputs represent the complete Experiment 2a design.
+    Confirm that the parsed outputs represent the complete baseline design.
     """
     if len(metrics) != EXPECTED_COMPARISONS:
         raise ValueError(
@@ -265,24 +282,32 @@ def validate_experiment_design(metrics: pd.DataFrame) -> None:
             f"found {len(metrics)}, expected {EXPECTED_COMPARISONS}."
         )
 
-    observed_samples = set(metrics["sample"].astype(str))
+    observed_samples = set(
+        metrics["sample"].astype(str)
+    )
 
     if observed_samples != EXPECTED_SAMPLES:
         raise ValueError(
-            "Unexpected Experiment 2a sample set.\n"
+            "Unexpected baseline source-BAM set.\n"
             f"Observed: {sorted(observed_samples)}\n"
             f"Expected: {sorted(EXPECTED_SAMPLES)}"
         )
 
     duplicate_mask = metrics.duplicated(
-        subset=["sample", "depth_percent"],
+        subset=[
+            "sample",
+            "depth_percent",
+        ],
         keep=False,
     )
 
     if duplicate_mask.any():
         duplicate_rows = metrics.loc[
             duplicate_mask,
-            ["sample", "depth_percent"],
+            [
+                "sample",
+                "depth_percent",
+            ],
         ]
 
         raise ValueError(
@@ -299,8 +324,13 @@ def validate_experiment_design(metrics: pd.DataFrame) -> None:
         )
 
         if sample_depths != EXPECTED_DEPTHS:
-            missing_depths = sorted(EXPECTED_DEPTHS - sample_depths)
-            unexpected_depths = sorted(sample_depths - EXPECTED_DEPTHS)
+            missing_depths = sorted(
+                EXPECTED_DEPTHS - sample_depths
+            )
+
+            unexpected_depths = sorted(
+                sample_depths - EXPECTED_DEPTHS
+            )
 
             raise ValueError(
                 f"Incomplete depth series for sample {sample}.\n"
@@ -309,31 +339,219 @@ def validate_experiment_design(metrics: pd.DataFrame) -> None:
             )
 
 
-def build_summary(metrics: pd.DataFrame) -> pd.DataFrame:
+def summarise_group(
+    group: pd.DataFrame,
+    *,
+    summary_level: str,
+    depth_percent: int | None,
+) -> dict[str, object]:
     """
-    Generate the depth-level summary table used in Experiment 2a.
+    Summarise concordance and discrepancy outcomes for a set of observations.
     """
-    return (
-        metrics.groupby("depth_percent")
-        .agg(
-            n_samples=("sample", "count"),
-            mean_flagstat_mapped=("flagstat_mapped", "mean"),
-            mean_idxstats_mapped=("idxstats_mapped", "mean"),
-            mean_mapped_diff=("mapped_diff", "mean"),
-            mean_mapped_diff_pct=("mapped_diff_pct", "mean"),
-            sd_mapped_diff_pct=("mapped_diff_pct", "std"),
-            min_mapped_diff_pct=("mapped_diff_pct", "min"),
-            max_mapped_diff_pct=("mapped_diff_pct", "max"),
+    n_observations = len(group)
+
+    if n_observations == 0:
+        raise ValueError(
+            "Cannot summarise an empty observation group."
         )
-        .reset_index()
-        .sort_values("depth_percent")
+
+    exact_count = int(
+        group["exact_concordance"].sum()
     )
+
+    percentage_values = (
+        group["percentage_discrepancy"]
+        .dropna()
+    )
+
+    max_percentage_discrepancy = (
+        float(percentage_values.max())
+        if not percentage_values.empty
+        else None
+    )
+
+    return {
+        "summary_level": summary_level,
+        "depth_percent": depth_percent,
+        "n_observations": n_observations,
+        "mean_flagstat_mapped": round(
+            float(group["flagstat_mapped"].mean()),
+            2,
+        ),
+        "mean_idxstats_mapped": round(
+            float(group["idxstats_mapped"].mean()),
+            2,
+        ),
+        "exact_concordance_count": exact_count,
+        "exact_concordance_pct": round(
+            exact_count / n_observations * 100,
+            6,
+        ),
+        "max_absolute_discrepancy": int(
+            group["absolute_discrepancy"].max()
+        ),
+        "max_percentage_discrepancy": (
+            round(
+                max_percentage_discrepancy,
+                6,
+            )
+            if max_percentage_discrepancy is not None
+            else None
+        ),
+    }
+
+
+def build_summary(
+    metrics: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Generate depth-level and overall baseline concordance summaries.
+    """
+    summary_rows: list[dict[str, object]] = []
+
+    for depth_percent in sorted(EXPECTED_DEPTHS):
+        depth_group = metrics.loc[
+            metrics["depth_percent"] == depth_percent
+        ]
+
+        summary_rows.append(
+            summarise_group(
+                depth_group,
+                summary_level="depth",
+                depth_percent=depth_percent,
+            )
+        )
+
+    summary_rows.append(
+        summarise_group(
+            metrics,
+            summary_level="overall",
+            depth_percent=None,
+        )
+    )
+
+    summary = pd.DataFrame(summary_rows)
+
+    summary["depth_percent"] = (
+        summary["depth_percent"].astype("Int64")
+    )
+
+    return summary
+
+
+def validate_results(
+    metrics: pd.DataFrame,
+    summary: pd.DataFrame,
+) -> None:
+    """
+    Validate internally derived concordance and discrepancy quantities.
+    """
+    expected_absolute = (
+        metrics["signed_discrepancy"].abs()
+    )
+
+    if not metrics[
+        "absolute_discrepancy"
+    ].equals(expected_absolute):
+        raise ValueError(
+            "Absolute discrepancy does not match "
+            "the absolute signed discrepancy."
+        )
+
+    expected_exact = (
+        metrics["flagstat_mapped"]
+        == metrics["idxstats_mapped"]
+    )
+
+    if not metrics[
+        "exact_concordance"
+    ].equals(expected_exact):
+        raise ValueError(
+            "Exact-concordance indicators are inconsistent "
+            "with mapped-read counts."
+        )
+
+    if (
+        metrics["absolute_discrepancy"] < 0
+    ).any():
+        raise ValueError(
+            "Absolute discrepancies cannot be negative."
+        )
+
+    non_null_percentage = (
+        metrics["percentage_discrepancy"]
+        .dropna()
+    )
+
+    if (
+        non_null_percentage < 0
+    ).any():
+        raise ValueError(
+            "Percentage discrepancies cannot be negative."
+        )
+
+    nonpositive_flagstat = (
+        metrics["flagstat_mapped"] <= 0
+    )
+
+    if metrics.loc[
+        nonpositive_flagstat,
+        "percentage_discrepancy",
+    ].notna().any():
+        raise ValueError(
+            "Percentage discrepancy must be undefined "
+            "when flagstat_mapped is not positive."
+        )
+
+    overall_rows = summary.loc[
+        summary["summary_level"] == "overall"
+    ]
+
+    if len(overall_rows) != 1:
+        raise ValueError(
+            "Expected exactly one overall summary row."
+        )
+
+    overall = overall_rows.iloc[0]
+
+    if (
+        int(overall["n_observations"])
+        != EXPECTED_COMPARISONS
+    ):
+        raise ValueError(
+            "Overall summary does not contain the expected "
+            "number of paired observations."
+        )
+
+    if (
+        int(overall["exact_concordance_count"])
+        != int(metrics["exact_concordance"].sum())
+    ):
+        raise ValueError(
+            "Overall exact-concordance count is inconsistent "
+            "with the observation-level table."
+        )
+
+    if (
+        int(overall["max_absolute_discrepancy"])
+        != int(metrics["absolute_discrepancy"].max())
+    ):
+        raise ValueError(
+            "Overall maximum absolute discrepancy is inconsistent "
+            "with the observation-level table."
+        )
 
 
 def main() -> None:
-    """Generate and validate the canonical Experiment 2a tables."""
+    """
+    Generate and validate the canonical baseline concordance tables.
+    """
     validate_input_directories()
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    RESULTS_DIR.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     rows = collect_rows()
 
@@ -345,7 +563,10 @@ def main() -> None:
     metrics = (
         pd.DataFrame(rows)
         .sort_values(
-            ["sample", "depth_percent"],
+            [
+                "sample",
+                "depth_percent",
+            ],
             kind="stable",
         )
         .reset_index(drop=True)
@@ -355,30 +576,64 @@ def main() -> None:
 
     summary = build_summary(metrics)
 
+    validate_results(
+        metrics,
+        summary,
+    )
+
     metrics.to_csv(
         METRICS_TABLE,
         sep="\t",
         index=False,
+        na_rep="NA",
     )
 
     summary.to_csv(
         SUMMARY_TABLE,
         sep="\t",
         index=False,
+        na_rep="NA",
+    )
+
+    overall = summary.loc[
+        summary["summary_level"] == "overall"
+    ].iloc[0]
+
+    maximum_percentage = (
+        overall["max_percentage_discrepancy"]
+    )
+
+    if pd.isna(maximum_percentage):
+        percentage_text = "NA"
+    else:
+        percentage_text = (
+            f"{float(maximum_percentage):.6f}%"
+        )
+
+    print(
+        f"Wrote {METRICS_TABLE} with {len(metrics)} paired observations "
+        f"({len(EXPECTED_SAMPLES)} source BAMs × "
+        f"{len(EXPECTED_DEPTHS)} nested depth conditions)."
     )
 
     print(
-        f"Wrote {METRICS_TABLE} with {len(metrics)} rows "
-        f"({len(EXPECTED_SAMPLES)} samples × "
-        f"{len(EXPECTED_DEPTHS)} depths)."
+        f"Wrote {SUMMARY_TABLE} with "
+        f"{len(summary)} summary rows."
     )
 
     print(
-        f"Wrote {SUMMARY_TABLE} with {len(summary)} rows."
+        "Baseline concordance summary: "
+        f"{int(overall['exact_concordance_count'])}/"
+        f"{int(overall['n_observations'])} exact; "
+        "maximum absolute discrepancy = "
+        f"{int(overall['max_absolute_discrepancy'])}; "
+        "maximum percentage discrepancy = "
+        f"{percentage_text}."
     )
 
     print(
-        "Experiment 2a table generation completed successfully."
+        "Baseline concordance table generation "
+        "completed successfully."
     )
 
 
@@ -390,5 +645,8 @@ if __name__ == "__main__":
         OSError,
         ValueError,
     ) as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
+        print(
+            f"ERROR: {exc}",
+            file=sys.stderr,
+        )
         raise SystemExit(1) from exc

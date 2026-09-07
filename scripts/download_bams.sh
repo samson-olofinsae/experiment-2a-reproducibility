@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-# Download and MD5-validate the three BAM files used in Experiment 2a.
+# Download and MD5-validate the three source BAM files used in the
+# baseline concordance experiment.
 #
 # Input manifest:
 #   config/experiment_2a_bam_manifest.tsv
@@ -211,7 +212,7 @@ do
 done
 
 echo "Download and checksum-validation step complete."
-echo "Validated BAM directory: ${OUTDIR}"
+echo "Validated source-BAM directory: ${OUTDIR}"
 echo "Validation report: ${VALIDATION_LOG}"
 echo "Failure report: ${FAIL_LOG}"
 echo "Quarantine directory: ${QUARANTINE_DIR}"

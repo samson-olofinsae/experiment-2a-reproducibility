@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-# Reproduce the complete Experiment 2a analytical workflow.
+# Reproduce the complete baseline concordance analytical workflow.
 #
 # Starting from the three source BAM files listed in:
 #
@@ -10,15 +10,20 @@ set -euo pipefail
 #
 # this script:
 #
-#   1. validates the source BAM files using samtools quickcheck;
+#   1. validates the three source BAM files using samtools quickcheck;
 #   2. verifies or creates BAM indexes;
-#   3. independently downsamples each source BAM to 10–90%;
+#   3. generates nine deterministic nested downsampling conditions
+#      (10–90%) directly from each source BAM;
 #   4. generates raw samtools flagstat outputs;
 #   5. generates raw samtools idxstats outputs;
 #   6. creates metrics_table.tsv;
 #   7. creates discrepancy_summary.tsv;
-#   8. generates manuscript Figures 2–5;
-#   9. verifies that all expected outputs were produced.
+#   8. generates the baseline publication figures;
+#   9. verifies that all expected baseline outputs were produced.
+#
+# The stale-index positive-control experiment is reproduced separately with:
+#
+#   experiment_2b/scripts/run_experiment_2b.sh
 #
 # The script does not download the source BAM files automatically.
 # Run scripts/download_bams.sh first, or place the three source BAMs in:
@@ -29,7 +34,7 @@ set -euo pipefail
 #
 #   bash scripts/run_full_analysis.sh
 #
-# To replace previously generated analytical outputs:
+# To replace previously generated baseline analytical outputs:
 #
 #   bash scripts/run_full_analysis.sh --overwrite
 
@@ -68,7 +73,8 @@ FRACTIONS=(
 
 EXPECTED_SAMPLES=3
 EXPECTED_DEPTHS=9
-EXPECTED_COMPARISONS=$((EXPECTED_SAMPLES * EXPECTED_DEPTHS))
+EXPECTED_OBSERVATIONS=$((EXPECTED_SAMPLES * EXPECTED_DEPTHS))
+EXPECTED_SUMMARY_ROWS=$((EXPECTED_DEPTHS + 1))
 
 OVERWRITE=false
 
@@ -90,7 +96,7 @@ if [[ $# -eq 1 ]]; then
             echo "Usage: $0 [--overwrite]"
             echo
             echo "Options:"
-            echo "  --overwrite   Replace previously generated Experiment 2a outputs."
+            echo "  --overwrite   Replace previously generated baseline outputs."
             echo "  -h, --help    Show this help message."
             exit 0
             ;;
@@ -152,12 +158,12 @@ done
 
 if [[ ! -d "${RAW_DIR}" ]]; then
     echo "ERROR: Source BAM directory not found: ${RAW_DIR}" >&2
-    echo "Run scripts/download_bams.sh or place the Experiment 2a BAM files there." >&2
+    echo "Run scripts/download_bams.sh or place the three source BAM files there." >&2
     exit 1
 fi
 
 # ------------------------------------------------------------------
-# Read the fixed Experiment 2a sample set
+# Read the fixed baseline source-BAM set
 # ------------------------------------------------------------------
 
 mapfile -t SAMPLE_IDS < <(
@@ -170,7 +176,7 @@ if [[ ${#SAMPLE_IDS[@]} -ne ${EXPECTED_SAMPLES} ]]; then
     exit 1
 fi
 
-echo "Experiment 2a samples:"
+echo "Baseline source BAMs:"
 
 for sample_id in "${SAMPLE_IDS[@]}"; do
     echo "  - ${sample_id}"
@@ -206,7 +212,7 @@ for generated_path in "${generated_paths[@]}"; do
 done
 
 if [[ "${existing_outputs}" == true && "${OVERWRITE}" == false ]]; then
-    echo "ERROR: Previously generated analytical outputs already exist." >&2
+    echo "ERROR: Previously generated baseline analytical outputs already exist." >&2
     echo "To replace them, run:" >&2
     echo >&2
     echo "  bash scripts/run_full_analysis.sh --overwrite" >&2
@@ -214,7 +220,7 @@ if [[ "${existing_outputs}" == true && "${OVERWRITE}" == false ]]; then
 fi
 
 if [[ "${OVERWRITE}" == true ]]; then
-    echo "Removing previously generated analytical outputs..."
+    echo "Removing previously generated baseline analytical outputs..."
 
     rm -rf \
         "${DOWNSAMPLED_DIR}" \
@@ -272,10 +278,10 @@ fi
 
 echo
 echo "============================================================"
-echo "Steps 2–3 of 5: Downsampling and metric extraction"
+echo "Steps 2–3 of 5: Nested downsampling and metric extraction"
 echo "============================================================"
 
-comparison_count=0
+observation_count=0
 
 for sample_id in "${SAMPLE_IDS[@]}"; do
     source_bam="${RAW_DIR}/${sample_id}.bam"
@@ -300,7 +306,7 @@ PY
         idxstats_output="${IDXSTATS_DIR}/${output_stem}.idxstats.txt"
 
         echo
-        echo "  Depth: ${depth_percent}%"
+        echo "  Nested depth condition: ${depth_percent}%"
 
         bash \
             "${DOWNSAMPLE_SCRIPT}" \
@@ -318,13 +324,13 @@ PY
             "${downsampled_bam}" \
             "${idxstats_output}"
 
-        comparison_count=$((comparison_count + 1))
+        observation_count=$((observation_count + 1))
     done
 done
 
-if [[ "${comparison_count}" -ne "${EXPECTED_COMPARISONS}" ]]; then
-    echo "ERROR: Generated ${comparison_count} comparisons;" >&2
-    echo "expected ${EXPECTED_COMPARISONS}." >&2
+if [[ "${observation_count}" -ne "${EXPECTED_OBSERVATIONS}" ]]; then
+    echo "ERROR: Generated ${observation_count} paired observations;" >&2
+    echo "expected ${EXPECTED_OBSERVATIONS}." >&2
     exit 1
 fi
 
@@ -352,21 +358,21 @@ idxstats_count="$(
     wc -l
 )"
 
-if [[ "${downsampled_count}" -ne "${EXPECTED_COMPARISONS}" ]]; then
+if [[ "${downsampled_count}" -ne "${EXPECTED_OBSERVATIONS}" ]]; then
     echo "ERROR: Found ${downsampled_count} downsampled BAM files;" >&2
-    echo "expected ${EXPECTED_COMPARISONS}." >&2
+    echo "expected ${EXPECTED_OBSERVATIONS}." >&2
     exit 1
 fi
 
-if [[ "${flagstat_count}" -ne "${EXPECTED_COMPARISONS}" ]]; then
+if [[ "${flagstat_count}" -ne "${EXPECTED_OBSERVATIONS}" ]]; then
     echo "ERROR: Found ${flagstat_count} flagstat outputs;" >&2
-    echo "expected ${EXPECTED_COMPARISONS}." >&2
+    echo "expected ${EXPECTED_OBSERVATIONS}." >&2
     exit 1
 fi
 
-if [[ "${idxstats_count}" -ne "${EXPECTED_COMPARISONS}" ]]; then
+if [[ "${idxstats_count}" -ne "${EXPECTED_OBSERVATIONS}" ]]; then
     echo "ERROR: Found ${idxstats_count} idxstats outputs;" >&2
-    echo "expected ${EXPECTED_COMPARISONS}." >&2
+    echo "expected ${EXPECTED_OBSERVATIONS}." >&2
     exit 1
 fi
 
@@ -399,25 +405,25 @@ summary_row_count="$(
     awk 'END {print NR - 1}' "${SUMMARY_TABLE}"
 )"
 
-if [[ "${metrics_row_count}" -ne "${EXPECTED_COMPARISONS}" ]]; then
+if [[ "${metrics_row_count}" -ne "${EXPECTED_OBSERVATIONS}" ]]; then
     echo "ERROR: Metrics table contains ${metrics_row_count} data rows;" >&2
-    echo "expected ${EXPECTED_COMPARISONS}." >&2
+    echo "expected ${EXPECTED_OBSERVATIONS}." >&2
     exit 1
 fi
 
-if [[ "${summary_row_count}" -ne "${EXPECTED_DEPTHS}" ]]; then
+if [[ "${summary_row_count}" -ne "${EXPECTED_SUMMARY_ROWS}" ]]; then
     echo "ERROR: Summary table contains ${summary_row_count} data rows;" >&2
-    echo "expected ${EXPECTED_DEPTHS}." >&2
+    echo "expected ${EXPECTED_SUMMARY_ROWS}." >&2
     exit 1
 fi
 
 # ------------------------------------------------------------------
-# Step 5: figure generation
+# Step 5: baseline figure generation
 # ------------------------------------------------------------------
 
 echo
 echo "============================================================"
-echo "Step 5 of 5: Generating publication figures"
+echo "Step 5 of 5: Generating baseline publication figures"
 echo "============================================================"
 
 python3 "${PLOTTING_SCRIPT}"
@@ -425,12 +431,8 @@ python3 "${PLOTTING_SCRIPT}"
 expected_figure_outputs=(
     "${FIGURES_DIR}/figure2_mean_mapped_reads_by_depth.png"
     "${FIGURES_DIR}/figure2_mean_mapped_reads_by_depth.pdf"
-    "${FIGURES_DIR}/figure3_flagstat_vs_idxstats_agreement.png"
-    "${FIGURES_DIR}/figure3_flagstat_vs_idxstats_agreement.pdf"
-    "${FIGURES_DIR}/figure4_mapped_difference_pct_by_depth.png"
-    "${FIGURES_DIR}/figure4_mapped_difference_pct_by_depth.pdf"
-    "${FIGURES_DIR}/figure5_sample_mapped_reads_by_depth.png"
-    "${FIGURES_DIR}/figure5_sample_mapped_reads_by_depth.pdf"
+    "${FIGURES_DIR}/figure3_signed_discrepancy_by_depth.png"
+    "${FIGURES_DIR}/figure3_signed_discrepancy_by_depth.pdf"
     "${FIGURES_DIR}/figure_summary_stats.txt"
 )
 
@@ -447,20 +449,23 @@ done
 
 echo
 echo "============================================================"
-echo "Experiment 2a reproduction completed successfully"
+echo "Baseline concordance reproduction completed successfully"
 echo "============================================================"
 echo
 echo "Source BAM files validated: ${validation_pass_count}"
 echo "Downsampled BAM files generated: ${downsampled_count}"
 echo "flagstat outputs generated: ${flagstat_count}"
 echo "idxstats outputs generated: ${idxstats_count}"
-echo "Benchmarking comparisons: ${metrics_row_count}"
-echo "Depth-level summary rows: ${summary_row_count}"
+echo "Paired mapped-read observations: ${metrics_row_count}"
+echo "Summary rows: ${summary_row_count}"
 echo
-echo "Primary outputs:"
+echo "Primary baseline outputs:"
 echo "  ${METRICS_TABLE}"
 echo "  ${SUMMARY_TABLE}"
 echo "  ${FIGURES_DIR}/"
 echo
-echo "Canonical outputs for comparison are available in:"
+echo "Canonical baseline outputs for comparison are available in:"
 echo "  expected_results/"
+echo
+echo "The stale-index positive-control experiment is reproduced separately with:"
+echo "  experiment_2b/scripts/run_experiment_2b.sh"
