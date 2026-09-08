@@ -327,7 +327,7 @@ The repository is maintained under Git version control. Scripts, analytical outp
 
 The positive-control prespecification was created before execution of the corresponding positive-control experiments and records the perturbation mechanism, expected discrepancies, analysis criteria, and success criteria.
 
-A versioned archival release of the repository is maintained through Zenodo. The release corresponding to the revised manuscript will be identified here after completion of the final reproducibility audit.
+**Version 1.1.0** of this reproducibility package, corresponding to the revised manuscript, is archived on Zenodo with the version-specific DOI **10.5281/zenodo.22657316**. The concept DOI **10.5281/zenodo.21781119** identifies the repository across all archived versions.
 
 ---
 
@@ -340,6 +340,8 @@ If you use this computational workflow, please cite the accompanying manuscript:
 > **A Reproducible Computational Benchmarking Framework for Evaluating Concordance Between BAM-Derived Mapped-Read Counts**
 >
 > *(Publication details to be updated.)*
+
+For the exact reproducibility package corresponding to the revised manuscript, cite **Version 1.1.0** using the version-specific Zenodo DOI **10.5281/zenodo.22657316**.
 
 ---
 
